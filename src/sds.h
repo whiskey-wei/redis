@@ -33,6 +33,7 @@
 #ifndef __SDS_H
 #define __SDS_H
 
+// 预分配的最大长度
 #define SDS_MAX_PREALLOC (1024*1024)
 extern const char *SDS_NOINIT;
 
@@ -41,6 +42,80 @@ extern const char *SDS_NOINIT;
 #include <stdint.h>
 
 typedef char *sds;
+
+/*1. __attribute__ ((packed)) 的作用就是告诉编译器取消结构在编译过程中的优化对齐,按照实际占用字节数进行对齐，是GCC特有的语法。这个功能是跟操作系统没关系，跟编译器有关，gcc编译器不是紧凑模式的，我在windows下，用vc的编译器也不是紧凑的，用tc的编译器就是紧凑的。例如：
+
+在TC下：struct my{ char ch; int a;} sizeof(int)=2;sizeof(my)=3;（紧凑模式）
+
+在GCC下：struct my{ char ch; int a;} sizeof(int)=4;sizeof(my)=8;（非紧凑模式）
+
+在GCC下：struct my{ char ch; int a;}__attrubte__ ((packed)) sizeof(int)=4;sizeof(my)=5
+
+2. __attribute__关键字主要是用来在函数或数据声明中设置其属性。给函数赋给属性的主要目的在于让编译器进行优化。函数声明中的__attribute__((noreturn))，就是告诉编译器这个函数不会返回给调用者，以便编译器在优化时去掉不必要的函数返回代码。
+
+GNU C的一大特色就是__attribute__机制。__attribute__可以设置函数属性（Function Attribute）、变量属性（Variable Attribute）和类型属性（Type Attribute）。
+
+__attribute__书写特征是：__attribute__前后都有两个下划线，并且后面会紧跟一对括弧，括弧里面是相应的__attribute__参数。
+
+__attribute__语法格式为：
+
+__attribute__ ((attribute-list))
+
+其位置约束：放于声明的尾部“；”之前。
+
+函数属性（Function Attribute）：函数属性可以帮助开发者把一些特性添加到函数声明中，从而可以使编译器在错误检查方面的功能更强大。__attribute__机制也很容易同非GNU应用程序做到兼容之功效。
+
+GNU CC需要使用 –Wall编译器来击活该功能，这是控制警告信息的一个很好的方式。
+
+packed属性：使用该属性可以使得变量或者结构体成员使用最小的对齐方式，即对变量是一字节对齐，对域（field）是位对齐。
+
+http://blogguan.blog.sohu.com/109697765.html
+
+*//* __attribute__ ((packed)) 的位置约束是放于声明的尾部“；”之前 *//*
+struct str_struct{
+    __u8    a;
+    __u8    b;
+    __u8    c;
+    __u16   d;
+} __attribute__ ((packed));
+
+*//* 当用到typedef时，要特别注意__attribute__ ((packed))放置的位置，相当于：
+   * typedef struct str_stuct str;
+   * 而struct str_struct 就是上面的那个结构。
+*//*
+typedef struct {
+    __u8    a;
+    __u8    b;
+    __u8    c;
+    __u16   d;
+} __attribute__ ((packed)) str;
+
+*//* 在下面这个typedef结构中，__attribute__ ((packed))放在结构名str_temp之后，其作用是被忽略的，注意与结构str的区别。*//*
+typedef struct {
+    __u8    a;
+    __u8    b;
+    __u8    c;
+    __u16   d;
+}str_temp __attribute__ ((packed));*/
+
+
+/*
+ * 之前版本保存字符串对象的结构
+ *//*
+
+struct sdshdr {
+
+    // buf 中已占用空间的长度
+    int len;
+
+    // buf 中剩余可用空间的长度
+    int free;
+
+    // 数据空间
+    char buf[];
+};
+*/
+
 
 /* Note: sdshdr5 is never used, we just access the flags byte directly.
  * However is here to document the layout of type 5 SDS strings. */

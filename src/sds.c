@@ -41,6 +41,7 @@
 
 const char *SDS_NOINIT = "SDS_NOINIT";
 
+// 根据类型获取sds结构对应大小
 static inline int sdsHdrSize(char type) {
     switch(type&SDS_TYPE_MASK) {
         case SDS_TYPE_5:
@@ -57,9 +58,11 @@ static inline int sdsHdrSize(char type) {
     return 0;
 }
 
+// 根据需要申请的空间大小返回不同的类型
 static inline char sdsReqType(size_t string_size) {
     if (string_size < 1<<5)
         return SDS_TYPE_5;
+    // 1<<8 就是uint8_t的最大值-1，以下同理
     if (string_size < 1<<8)
         return SDS_TYPE_8;
     if (string_size < 1<<16)
@@ -73,6 +76,7 @@ static inline char sdsReqType(size_t string_size) {
 #endif
 }
 
+// 获取各种类型能存储的最大值
 static inline size_t sdsTypeMaxSize(char type) {
     if (type == SDS_TYPE_5)
         return (1<<5) - 1;
@@ -100,18 +104,21 @@ static inline size_t sdsTypeMaxSize(char type) {
  * You can print the string with printf() as there is an implicit \0 at the
  * end of the string. However the string is binary safe and can contain
  * \0 characters in the middle, as the length is stored in the sds header. */
+// 创建sds结构
 sds _sdsnewlen(const void *init, size_t initlen, int trymalloc) {
     void *sh;
     sds s;
     char type = sdsReqType(initlen);
     /* Empty strings are usually created in order to append. Use type 8
      * since type 5 is not good at this. */
+    // sds8代替sds5
     if (type == SDS_TYPE_5 && initlen == 0) type = SDS_TYPE_8;
     int hdrlen = sdsHdrSize(type);
     unsigned char *fp; /* flags pointer. */
     size_t usable;
 
     assert(initlen + hdrlen + 1 > initlen); /* Catch size_t overflow */
+    // 内存分配
     sh = trymalloc?
         s_trymalloc_usable(hdrlen+initlen+1, &usable) :
         s_malloc_usable(hdrlen+initlen+1, &usable);
@@ -120,11 +127,17 @@ sds _sdsnewlen(const void *init, size_t initlen, int trymalloc) {
         init = NULL;
     else if (!init)
         memset(sh, 0, hdrlen+initlen+1);
+
+    // 获取指向buf的指针
     s = (char*)sh+hdrlen;
+
+    // 指向flags的指针
     fp = ((unsigned char*)s)-1;
     usable = usable-hdrlen-1;
     if (usable > sdsTypeMaxSize(type))
         usable = sdsTypeMaxSize(type);
+
+    // 不同类型初始化不同
     switch(type) {
         case SDS_TYPE_5: {
             *fp = type | (initlen << SDS_TYPE_BITS);
@@ -159,6 +172,7 @@ sds _sdsnewlen(const void *init, size_t initlen, int trymalloc) {
             break;
         }
     }
+    // 拷贝内存
     if (initlen && init)
         memcpy(s, init, initlen);
     s[initlen] = '\0';
